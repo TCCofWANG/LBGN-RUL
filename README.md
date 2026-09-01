@@ -40,20 +40,10 @@ Once uploaded, this repository will include:
 
 Both are publicly available; links will be added alongside the code.
 
-## Citation
-
-A citation entry (BibTeX) will be added here once the paper is accepted/published. If you use this work in the meantime, please check back for the correct reference, or cite the manuscript title and authors below.
-
-```
-Lifecycle Band Graph Network for Cross-Condition Remaining Useful Life Prediction
-Zeeshan Abbas, Hao Wang, Mehboob Hussain, Abid Hussain, Wenming Cao
-(Manuscript under submission)
-```
-
 ## License
 
 License to be added upon code release.
 
 ## Contact
 
-For questions in the meantime, please open an issue or contact the corresponding author (see the manuscript for details).
+For questions in the meantime, please open an issue or contact.
