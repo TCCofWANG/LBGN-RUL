@@ -62,10 +62,6 @@ python CMAPSS_DA.py --model_name AIDGN --dataset_name CMAPSS \
     --Data_id_CMAPSS FD001 --Data_id_CMAPSS_test FD003 --seed 42
 ```
 
-See `scripts/` for the full 4-source x 3-target x 8-seed sweep used to
-produce the paper's results, and `analysis/README.md` for how the result
-CSVs are turned into tables.
-
 ## Reproducing the reported LBGN-RUL results
 
 `release_artifacts/checkpoints/` ships the actual trained checkpoints behind
