@@ -93,27 +93,7 @@ class Exp ( object ) :
 
     @property
     def _get_model(self) :
-        if  self.args.model_name == 'DLGNet' or self.args.model_name == 'DLGNet_best':
-            model = DLGNet ( self.args )
-
-        elif self.args.model_name == 'AIDGN':
-
-
-            self.args.feature_num = self.args.num_nodes
-            self.args.sequence_len = self.args.input_length
-            self.args.fc_dropout = self.args.dropout
-            self.args.outlayer = 'Linear'
-            self.args.feature_fc_layer_dim = self.args.feature_num * 4
-            self.args.fc_layer_dim = self.args.hidden_dim * 4
-            model = AIDGN ( self.args )
-
-        elif self.args.model_name == 'working_model_RUL':
-            model = working_model_RUL ( self.args )
-
-        elif self.args.model_name == 'PDMN':
-            model = PDMN ( self.args )
-
-        elif self.args.model_name == 'DAGCN_RUL':
+        if self.args.model_name == 'DAGCN_RUL':
             model = DAGCN_RUL ( self.args )
 
         elif self.args.model_name == 'EviAdaptRUL':
@@ -141,14 +121,6 @@ class Exp ( object ) :
                 model = LBGN_RUL_ablation ( self.args )
             else :
                 model = LBGN_RUL ( self.args )
-
-        elif self.args.model_name == 'LBGN_RUL_v2':
-
-
-            model = LBGN_RUL_v2 ( self.args )
-
-        elif self.args.model_name == 'NDC_PDMN':
-            model = NDC_PDMN ( self.args )
 
         elif self.args.model_name == 'OCS_DANN':
             model = OCS_DANN ( self.args )
