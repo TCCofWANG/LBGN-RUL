@@ -1,49 +1,101 @@
-# LBGN-RUL: Lifecycle Band Graph Network for Cross-Condition Remaining Useful Life Prediction
+# LBGN-RUL
 
-> **Status: code and pretrained weights coming soon.** This repository is being prepared to accompany our manuscript, currently under submission. The implementation, trained checkpoints, and full experiment configs will be uploaded here shortly — watch/star the repo to be notified.
+Lifecycle Band Graph Network for Remaining Useful Life (RUL) prediction under
+domain shift, evaluated on the CMAPSS and N-CMAPSS turbofan degradation
+datasets.
 
 ## Overview
 
-LBGN-RUL is a graph neural network for **remaining useful life (RUL) prediction** of aero-engines under **cross-condition domain shift** (e.g., transferring a predictor trained on one C-MAPSS/N-CMAPSS operating subset to another). Instead of aligning a global feature embedding or the predicted output — the standard recipe in domain-adaptation approaches to RUL — LBGN-RUL makes the **inter-sensor coupling structure itself lifecycle-aware and band-resolved**, and aligns that structure across domains.
+LBGN-RUL combines two views of the sensor signal:
 
-Key ideas:
+- **Time view** — a lifecycle-band-coherence adjacency with depth-wise FiLM
+  conditioning (`Models_RUL/LBGN_RUL.py`).
+- **Spectral view** — an OCC-FiLM-conditioned spectral branch with a
+  Laplacian relaxation step, fused with the time view via additive gating.
 
-- **Frequency-domain graph construction.** Inter-sensor coupling is decomposed into per-band coherence matrices (via the real FFT) rather than a single full-band, time-domain similarity score, so degradation-related structure that is concentrated in specific frequency bands is not averaged away.
-- **Lifecycle conditioning at three points.** A lifecycle embedding, derived from the operational cycle count (OCC), drives (i) a soft weighting over the coherence bands, (ii) a depth-wise residual FiLM modulation of the time-view features at every propagation hop, and (iii) an independent FiLM correction inside a complementary spectral view that retains the aggregate coherence the band weighting discards.
-- **Lifecycle-matched structural alignment.** A staged maximum mean discrepancy (MMD) penalty aligns the source/target adjacency stage-by-stage, using observable OCC quantiles rather than pseudo-labels, together with a monotonic coupling prior.
+Domain adaptation is handled with a monotonic adjacency regularizer (MAR)
+plus an adjacency-MMD structural-alignment term.
 
-## Results summary
+## Repository layout
 
-Evaluated against eight representative domain-adaptation baselines (DAGCN, DAST, MDAN, CADA, TACDA, EviAdapt, OCS-DANN, CCDG) across all cross-condition transfers on two aero-engine degradation benchmarks:
+- `CMAPSS_DA.py` — main entry point (training/evaluation for both datasets).
+- `Experiment/Experiment.py` — training loop, data dispatch, model dispatch.
+- `Models_RUL/` — LBGN-RUL and all compared baselines (AIDGN, DLGNet, PDMN,
+  NDC_PDMN, DAGCN_RUL, EviAdaptRUL, DAST_RUL, CADA_RUL, TACDA_RUL, OCS_DANN,
+  MDAN_RUL, CCDG_RUL, working_model_RUL).
+- `Models_RUL/LBGN_RUL_ablation.py` — architectural ablation variants (A1
+  adjacency substrate, A2 FiLM conditioning, A3 spectral view); loss-level
+  ablations (A4: plain MSE, no-DA, source-only) are handled directly in
+  `Experiment.training_da`.
+- `CMAPSS_Related/`, `N_CMAPSS_Related/` — dataset loaders.
+- `configs/` — per-dataset/per-model hyperparameters (`hparams.py`) and
+  dataset shape config (`data_model_configs.py`).
+- `scripts/` — run scripts for the full seed/pair sweep, ablations, and
+  reproducibility checks (grid search, lambda sensitivity, FLOPs/inference
+  timing).
+- `analysis/` — scripts that turn raw experiment CSV logs into the paper's
+  tables and figures.
 
-| Benchmark | Mean RMSE reduction vs. strongest baseline | Mean Score reduction vs. strongest baseline |
-|---|---|---|
-| C-MAPSS (12 transfers) | 28.5% | 55.3% |
-| N-CMAPSS (12 transfers) | 49.1% | 75.0% |
+## Setup
 
-LBGN-RUL also uses the fewest trainable parameters and the lowest FLOPs among all nine compared methods. Full per-transfer results, ablations, and statistical significance tests are reported in the paper.
+```bash
+pip install -r requirements.txt
+```
 
-## Repository contents (planned)
+Point `--data_path_CMAPSS` at your local CMAPSS directory (default `./CMAPSS`).
+N-CMAPSS paths are configured similarly via `--Data_id_N_CMAPSS` and the
+loader in `N_CMAPSS_Related/`.
 
-Once uploaded, this repository will include:
+## Running
 
-- `models/` — LBGN-RUL architecture and the reimplemented baselines used for comparison
-- `experiments/` — training and evaluation scripts, including the ablation configurations (A1–A4) reported in the paper
-- `data/` — preprocessing scripts for C-MAPSS and N-CMAPSS
-- `configs/` — hyperparameter configurations for each dataset/source domain
-- pretrained checkpoints for LBGN-RUL on all reported transfers
+```bash
+# Full model, single source -> target transfer
+python CMAPSS_DA.py --model_name LBGN_RUL --dataset_name CMAPSS \
+    --Data_id_CMAPSS FD001 --Data_id_CMAPSS_test FD003 --seed 42
 
-## Datasets
+# An architecture ablation
+python CMAPSS_DA.py --model_name LBGN_RUL --lbgn_ablation no_lifecycle \
+    --dataset_name CMAPSS --Data_id_CMAPSS FD001 --Data_id_CMAPSS_test FD003
 
-- **C-MAPSS** — NASA Prognostics Data Repository
-- **N-CMAPSS** — NASA-affiliated PCoE data repository
+# A baseline
+python CMAPSS_DA.py --model_name AIDGN --dataset_name CMAPSS \
+    --Data_id_CMAPSS FD001 --Data_id_CMAPSS_test FD003 --seed 42
+```
 
-Both are publicly available; links will be added alongside the code.
+See `scripts/` for the full 4-source x 3-target x 8-seed sweep used to
+produce the paper's results, and `analysis/README.md` for how the result
+CSVs are turned into tables.
 
-## License
+## Reproducing the reported LBGN-RUL results
 
-License to be added upon code release.
+`release_artifacts/checkpoints/` ships the actual trained checkpoints behind
+every LBGN-RUL number reported for CMAPSS — all 12 source→target pairs, all
+8 seeds (96 checkpoints, ~6 MB total), each alongside the `hparam.yaml` it
+was trained with and the `experimental_logs.csv` row it originally produced.
+This is an exact, not approximate, reproduction path: reloading a checkpoint
+re-runs the same forward pass on the same test set, so there is no
+retraining-time source of variance (seed, hardware, driver version, cuDNN
+algorithm selection) to reproduce around.
 
-## Contact
+```bash
+python test_CMAPSS_DA.py --logs_dir ./release_artifacts/checkpoints
+```
 
-For questions in the meantime, please open an issue or contact.
+This reloads all 96 checkpoints and re-evaluates each one, comparing the
+freshly computed RMSE/Score against what's in the shipped
+`experimental_logs.csv` rows. Verified: 96/96 reload and match to within
+floating-point noise (no errors, no discrepancies) as of the last check.
+
+Narrow it down with `--models LBGN_RUL --pairs FD001_FD002`, or point
+`--logs_dir` at your own `logs/` tree after running the training commands
+above to verify a fresh run the same way.
+
+## Reproducibility check (general)
+
+```bash
+python test_CMAPSS_DA.py --logs_dir <any logs tree>
+```
+
+Reloads every checkpoint under `--logs_dir` and re-evaluates it, comparing
+against the RMSE/Score originally recorded for that run. Nothing on disk is
+modified — this is a read-only check.

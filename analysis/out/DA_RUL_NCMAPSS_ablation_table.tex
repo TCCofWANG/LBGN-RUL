@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\caption{N-CMAPSS follow-up ablation check (LBGN\_RUL, 12 DS0x$\rightarrow$DS0y pairs, up to 8 seeds $\{0,1,7,41,42,64,1234,2026\}$ pooled). $\Delta$ and significance as in Table~\ref{tab:ablation}. \textit{Caution on no\_da}: $\sim$80\% of its pooled $\Delta$RMSE magnitude comes from two pairs (DS01$\rightarrow$DS04, DS02$\rightarrow$DS04) with extreme seed-to-seed variance (std$>$14 RMSE, a diverging-run artifact, not a smooth effect) -- the W/L split is the more reliable read. \textit{no\_spectral\_diffusion} is small but NOT outlier-driven (loses on 67/92 seed-pairs) and contradicts its CMAPSS result (Table~\ref{tab:ablation}: $p{=}0.287$, null), a dataset-dependent finding under further investigation. \textit{source\_only} is the cleanest-covered row here (full 8/8 seeds, all 12 pairs, no outlier caveat) -- unlike no\_da it removes ALL target-domain exposure, not just the loss weight, giving a genuine lower-bound reference. N\_CMAPSS hyperparameters are untested placeholders copied from CMAPSS FD001 -- treat every number here as a first look.}
+\label{tab:ablation-ncmapss}
+\begin{tabular}{lccccc}
+\toprule
+Variant & RMSE & $\Delta$RMSE (W/L) & Score & $\Delta$Score (W/L) \\
+\midrule
+\textbf{none (full model)} & \textbf{11.15$\pm$3.87} & -- & \textbf{2.20$\pm$1.61} & -- \\
+\midrule
+No spectral OCC-diffusion & 11.51$\pm$3.89 & +0.35$^{***}$ (28W-67L) & 2.33$\pm$1.66 & +0.12$^{**}$ (31W-64L) \\
+No DA loss (MAR + MMD off) & 13.04$\pm$4.78 & +1.87$^{**}$ (39W-54L-1T) & 12.99$\pm$28.65 & +10.98 (41W-52L-1T) \\
+Source-only (lower bound) & 11.37$\pm$3.84 & +0.22$^{*}$ (39W-57L) & 2.30$\pm$1.60 & +0.09$^{*}$ (38W-58L) \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Experiment outputs — checkpoints/logs are large and reproducible by rerunning
+# scripts/run_final_FD00X.sh against the committed configs/hparams.py.
+# Curated results for the repo live under release_artifacts/ (tracked).
+logs/
+logs_dev_archive/
+*.pth
+*.npz
+final_fd00*.log
+
+# Local data (not part of the repo — path configured via --data_path_CMAPSS)
+CMAPSS/
+D:/Datasets/
+external_data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Keep the curated, GitHub-facing results bundle
+!release_artifacts/
+!release_artifacts/**

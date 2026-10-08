@@ -1,0 +1,75 @@
+\subsection{Ablation study}\label{subsec:ablation}
+
+We evaluate the following variants against the full model (\textit{none}); architecture variants keep training identical, loss variants keep the architecture identical (Section~\ref{sec:method}).
+
+\textbf{Architecture ablations.}
+\textit{A1: adjacency substrate.}
+\begin{itemize}
+  \item \textbf{A1.1 -- Full-band time adjacency (no OCC).} Adjacency from full-band time-domain cosine similarity; no frequency-band decomposition, no OCC selection.
+  \item \textbf{A1.2 -- Uniform band mixing (no OCC).} Band decomposition kept; OCC selection over bands replaced by a frozen uniform (1/K) mix.
+  \item \textbf{A1.3 -- Static learned band mixing (no OCC).} Band decomposition kept; band mix is learned but static (no OCC input).
+  \item \textbf{A1.4 -- No lifecycle conditioning (both pathways).} Both OCC-conditioning pathways removed at once (time-view band selection and spectral-view FiLM), so neither can compensate for the other.
+\end{itemize}
+
+\textit{A2: FiLM conditioning.}
+\begin{itemize}
+  \item \textbf{A2.1 -- No input-stage FiLM.} Input-stage FiLM removed; depth-wise hop FiLM kept.
+  \item \textbf{A2.2 -- Shared (non-depthwise) FiLM.} One FiLM shared across all hop depths, instead of an independent FiLM per depth.
+  \item \textbf{A2.3 -- No FiLM.} All FiLM conditioning removed from the time view.
+\end{itemize}
+
+\textit{A3: spectral view.}
+\begin{itemize}
+  \item \textbf{A3.1 -- No spectral view.} Spectral view and fusion removed entirely; time-view output feeds the regression head directly.
+  \item \textbf{A3.2 -- No spectral OCC-FiLM.} Spectral view kept; its OCC-FiLM correction is skipped (time-view FiLM untouched).
+\end{itemize}
+
+\textbf{Loss ablations.}
+\textit{A4: loss terms.}
+\begin{itemize}
+  \item \textbf{A4.1 -- Unweighted (plain) MSE.} Source MSE loss is unweighted; the OCC-weighted (near-EOL emphasis) loss is removed.
+  \item \textbf{A4.2 -- No DA loss (MAR + MMD off).} Both domain-adaptation loss terms (MAR and adjacency MMD) set to zero at once; architecture unchanged.
+  \item \textbf{A4.3 -- Source-only (lower bound).} No target-domain exposure of any kind during training (no target batch drawn, no target forward pass, no domain-alignment term); architecture and the OCC-weighted task loss otherwise unchanged. Not a loss-weight-zeroed variant of no\_da -- a genuinely different training procedure, reported as the lower-bound anchor against which every DA method's (including our own) improvement can be read as closing X\% of the source-only-to-target gap.
+\end{itemize}
+
+Table~\ref{tab:ablation} reports a controlled ablation isolating each architectural and loss component, pooled across all twelve CMAPSS source$\to$target pairs and eight seeds ($n{=}96$ paired seed-pair comparisons per row). $\Delta$ is the paired per-seed change relative to the full model (negative = variant is better); $p$ is a two-tailed paired $t$-test on that column's own metric.
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\caption{LBGN ablation study (CMAPSS). RMSE/Score: mean$\pm$std over 8 seeds. $\Delta$: paired per-seed change vs \textit{none} (negative = variant is better), with two-tailed paired $t$-test $p$ and win/loss (W/L) seed count: $^{*}p{<}0.05$, $^{**}p{<}0.01$, $^{***}p{<}0.001$. Variant codes defined above.}
+\label{tab:ablation}
+\begin{tabular}{lccccc}
+\toprule
+Variant & RMSE & $\Delta$RMSE ($p$, W/L) & Score & $\Delta$Score ($p$, W/L) \\
+\midrule
+\textbf{none (full model)} & \textbf{18.15$\pm$3.38} & -- & \textbf{2,008$\pm$1,651} & -- \\
+\midrule
+\multicolumn{5}{l}{\textit{Architecture ablations}} \\
+A1.1 & 19.72$\pm$5.61 & +1.57$^{***}$ ($p{<}0.001$, 32W-64L) & 3,392$\pm$3,220 & +1,384$^{***}$ ($p{<}0.001$, 30W-66L) \\
+A1.2 & 18.09$\pm$3.49 & -0.06 ($p=0.521$, 55W-41L) & 2,032$\pm$1,696 & +24 ($p=0.524$, 60W-36L) \\
+A1.3 & 18.12$\pm$3.48 & -0.03 ($p=0.745$, 56W-40L) & 2,054$\pm$1,725 & +46 ($p=0.220$, 54W-42L) \\
+A1.4 & 20.44$\pm$5.15 & +2.29$^{***}$ ($p{<}0.001$, 33W-63L) & 5,886$\pm$7,561 & +3,878$^{***}$ ($p{<}0.001$, 36W-60L) \\
+A2.1 & 18.87$\pm$5.06 & +0.72 ($p=0.054$, 54W-42L) & 4,285$\pm$8,882 & +2,278 ($p=0.369$, 62W-34L) \\
+A2.2 & 18.85$\pm$4.68 & +0.70$^{*}$ ($p=0.030$, 47W-49L) & 2,375$\pm$2,212 & +368 ($p=0.472$, 55W-41L) \\
+A2.3 & 18.96$\pm$4.56 & +0.80$^{*}$ ($p=0.011$, 31W-65L) & 2,099$\pm$1,708 & +91 ($p=0.541$, 38W-58L) \\
+A3.1 & 19.46$\pm$5.15 & +1.31$^{***}$ ($p{<}0.001$, 28W-68L) & 2,551$\pm$1,879 & +543$^{**}$ ($p=0.001$, 33W-63L) \\
+A3.2 & 20.26$\pm$5.20 & +2.11$^{***}$ ($p{<}0.001$, 25W-71L) & 5,351$\pm$8,176 & +3,343$^{**}$ ($p=0.003$, 30W-66L) \\
+\midrule
+\multicolumn{5}{l}{\textit{Loss ablations}} \\
+A4.1 & 18.54$\pm$3.94 & +0.39$^{***}$ ($p{<}0.001$, 36W-60L) & 2,137$\pm$1,627 & +129 ($p=0.097$, 41W-55L) \\
+A4.2 & 18.09$\pm$3.50 & -0.07 ($p=0.462$, 51W-45L) & 2,032$\pm$1,678 & +24 ($p=0.525$, 56W-40L) \\
+A4.3 & 18.60$\pm$3.95 & +0.45$^{***}$ ($p{<}0.001$, 33W-63L) & 2,300$\pm$1,878 & +293$^{*}$ ($p=0.016$, 40W-56L) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\textbf{C1 -- time view (A1, A2).} Of the three variants targeting the adjacency component of C1, \texttt{uniform\_band} and \texttt{static\_band} are statistically indistinguishable from the full model ($-0.33\%$ and $-0.16\%$ RMSE, $p=0.521$/$p=0.745$), while \texttt{time\_adj} -- which additionally removes the band decomposition itself -- costs $+8.64\%$ RMSE / $+68.9\%$ Score ($p{<}0.001$). All three leave C2's independent spectral-view conditioning untouched, giving the model an alternate lifecycle pathway that plausibly explains the first two null results; \texttt{no\_lifecycle}, which disables both pathways at once, confirms this reading with a large, significant effect ($+12.6\%$ RMSE / $+193.2\%$ Score, $p{<}0.001$). We read this as evidence that lifecycle-conditioning the adjacency is load-bearing but redundantly encoded across views, not that it is dispensable; the current variant set does not isolate the time-view contribution alone from this redundancy.
+
+FiLM conditioning shows no such confound: removing the input-stage modulation (\texttt{no\_input\_film}) costs $+3.94\%$ RMSE ($p=0.054$); its large mean Score increase ($+113.4\%$) is not significant ($p=0.369$) and traces to a single pair whose few divergent seeds sit an order of magnitude outside every other pair's range, despite \texttt{no\_input\_film} winning the majority of cells overall (54W-42L). Sharing one modulator across hop depths (\texttt{shared\_film}) costs $+3.84\%$ RMSE ($p=0.030$); removing FiLM entirely (\texttt{no\_film}) costs $+4.43\%$ RMSE ($p=0.011$).
+
+\textbf{C2 -- spectral view (A3).} Removing the spectral view entirely (\texttt{no\_spectral\_view}) costs $+7.20\%$ RMSE / $+27.1\%$ Score ($p{<}0.001$/$p=0.001$); removing only its OCC-FiLM correction (\texttt{no\_spectral\_film}) costs \emph{more} -- $+11.63\%$ RMSE / $+166.5\%$ Score ($p{<}0.001$/$p=0.003$) -- confirming it is the lifecycle-conditioning, not the branch's presence, that earns it a place in the model.
+
+\textbf{Loss terms.} \texttt{plain\_mse} costs $+2.13\%$ RMSE ($p{<}0.001$), confirming non-uniform, lifecycle-aware loss weighting matters. \texttt{no\_da} (both the monotonic prior and structural MMD terms off) is a clean null on CMAPSS ($-0.37\%$ RMSE, $p=0.462$, near-even 51W-45L), consistent with Section~\ref{sec:introduction}'s disclosure that structural alignment is not claimed as a driver of the reported gains. On N-CMAPSS, paired across matching seeds ($n=93$), \texttt{no\_da} leaves the point estimate largely unchanged on 11 of 12 transfers ($p=0.038$ excluding one outlier pair) but produces outright training divergence on the hardest transfer (DS01$\to$DS04: RMSE $>35$ on 3 of 8 seeds vs. a stable $\sim\!9$--$10$ with the full model), suggesting the structural-alignment term plays a stabilizing rather than accuracy role under large domain gaps -- a hypothesis we leave for confirmation with additional seeds. \texttt{no\_mar}/\texttt{no\_mmd} in isolation are deferred to future work. Unlike \texttt{no\_da}, \texttt{source\_only} -- no target-domain exposure of any kind, not merely a zero-weighted loss term -- is a significant regression ($+2.46\%$ RMSE / $+14.6\%$ Score, $p{<}0.001$, 33W-63L), giving a lower-bound reference against which the full model's (and the eight compared baselines') transfer improvement can be read as closing a fraction of the source-only-to-target gap rather than only beating the next-best baseline.
+
+Two additional probes -- inverting the OCC weighting direction (\texttt{inverted\_occ\_weight}) and removing the spectral diffusion step alone (\texttt{no\_spectral\_diffusion}) -- were also non-significant ($p=0.098$, $p=0.287$) and are omitted from Table~\ref{tab:ablation} since neither maps to a claimed contribution.

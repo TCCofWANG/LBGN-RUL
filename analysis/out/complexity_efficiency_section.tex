@@ -1,0 +1,153 @@
+% =============================================================================
+% Complexity vs. efficiency analysis
+% Drafted per anthropic-skills:polishing-manuscripts. Every number traces to
+% analysis/out/inference_time_per_model.csv (parameters, inference latency),
+% analysis/out/flops_per_model.csv (FLOPs, via analysis/flop_utils.py), or
+% the already-verified CMAPSS results tables (RMSE, Score).
+% Evidence-vs-interpretation audit at the end of this file.
+% =============================================================================
+
+\subsection{Complexity vs. efficiency analysis}
+\label{subsec:complexity}
+
+Table~\ref{tab:complexity} and Figure~\ref{fig:complexity_rmse}/\ref{fig:complexity_score}
+summarize each method's parameter count and FLOPs against its mean CMAPSS
+RMSE and Score (all 12 source$\to$target pairs, all seeds), with inference
+latency measured directly on the trained checkpoints -- one full test-set
+forward pass per timed run, averaged over repeated runs, entirely separate
+from training cost -- rather than taken from a training-time proxy, since
+the two are not interchangeable and only the former reflects deployment
+cost. FLOPs were computed on a single batch-size-1 sample per model via
+\texttt{thop}, extended with a monkey-patched einsum/matmul/FFT counter for
+the custom graph and spectral operations \texttt{thop}'s standard layer
+hooks cannot see (Section~\ref{subsec:flops_method}); reported values are
+MACs$\times2$.
+
+\begin{table}[t]
+\centering
+\caption{Model complexity and CMAPSS efficiency. Parameters and FLOPs for
+LBGN are pair-weighted means across its two source-dependent architecture
+variants (Section~\ref{subsec:flops_method}); every other model's
+architecture, and therefore its parameter count and FLOPs, is fixed across
+all 12 pairs. \textbf{Bold} marks the best (lowest) value per column.}
+\label{tab:complexity}
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Parameters & FLOPs (M) & Inference (ms) & RMSE & Score \\
+\midrule
+LBGN (ours)              & \textbf{11{,}538}    & \textbf{0.47} & 8.00           & \textbf{18.15} & \textbf{2{,}007.75} \\
+DAGCN~\cite{li2021DAGCN}       & 1{,}586{,}447   & 4.32          & 9.61           & 26.61          & 31{,}993.92 \\
+EviAdapt~\cite{hou2025EviAdapt} & 121{,}480       & 6.93          & 11.35          & 25.86          & 6{,}093.46 \\
+DAST~\cite{li2022DAST}         & 151{,}652       & 9.31          & 6.32           & 25.74          & 4{,}496.76 \\
+CADA~\cite{ragab2021CADA}      & 115{,}265       & 6.92          & 11.29          & 25.95          & 5{,}467.99 \\
+TACDA~\cite{hou2025TACDA}      & 124{,}505       & 7.51          & 22.17          & 26.61          & 6{,}546.00 \\
+OCS-DANN~\cite{nejjar2023OCSDANN} & 26{,}405     & 2.33          & \textbf{1.43}  & 25.38          & 9{,}935.86 \\
+MDAN~\cite{furqon2024MDAN}     & 65{,}089        & 6.41          & 15.80          & 25.73          & 5{,}932.85 \\
+CCDG~\cite{mohamed2022CCDG}    & 353{,}921       & 4.44          & 1.94           & 31.12          & 22{,}760.47 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+LBGN uses 11{,}538 parameters and 0.47~MFLOPs on average, 2.3--137.5$\times$
+fewer parameters and 4.9--19.7$\times$ fewer FLOPs than every compared
+baseline (Table~\ref{tab:complexity}); OCS-DANN is next-smallest on both
+measures (26{,}405 parameters, 2.33~MFLOPs). Neither figure is perfectly
+fixed across source domains: LBGN's LCE\_dim is tuned per source
+(Section~\ref{subsec:flops_method}), giving 13{,}716 parameters / 0.52~MFLOPs
+on FD001 and 10{,}812 / 0.45~MFLOPs elsewhere, so the values reported are
+pair-weighted means (3 of 12 pairs use the FD001 variant) -- consistent with
+how RMSE, Score, and inference time are already averaged over all 12 pairs.
+Despite this reduction, LBGN attains the lowest mean RMSE (18.15) and the
+lowest mean Score (2{,}007.75) of all nine compared methods
+(Section~\ref{subsec:results}), so the accuracy gain does not come from
+added model capacity.
+
+Parameters and FLOPs do not rank the same way across baselines, which
+matters for what "complexity" is taken to mean. DAGCN has by far the most
+parameters (1{,}586{,}447, 137.5$\times$ LBGN) but ranks only third-lowest on
+FLOPs (4.32~MFLOPs) -- lower than DAST, TACDA, EviAdapt, CADA, and MDAN,
+each of which has 10--24$\times$ fewer parameters (10.5$\times$ for DAST,
+24.4$\times$ for MDAN). Conversely, DAST has the
+third-largest parameter count (151{,}652) -- an order of magnitude below
+DAGCN and well below CCDG, but still more than every other baseline -- yet
+the highest FLOPs of any compared method (9.31~MFLOPs). This is consistent with
+DAGCN's cost sitting mostly in wide layers that are evaluated once per
+forward pass, while DAST's and TACDA's attention-based components scale
+with sequence length rather than channel width, so a parameter-count
+comparison alone would rank these methods' computational cost in the wrong
+order; FLOPs and parameters are both necessary here; the table reports both
+rather than treating one as a proxy for the other.
+
+On inference latency, LBGN is competitive but not the fastest: it ranks
+fourth of nine methods (8.00~ms/run), behind OCS-DANN (1.43~ms), CCDG
+(1.94~ms), and DAST (6.32~ms), and ahead of DAGCN, CADA, EviAdapt, MDAN, and
+TACDA (9.61--22.17~ms). The two faster methods do not dominate LBGN
+overall, however: OCS-DANN's RMSE (25.38) and Score (9{,}935.86) and CCDG's
+RMSE (31.12) and Score (22{,}760.47) are both substantially worse than
+LBGN's, so their latency advantage -- on the order of a few milliseconds in
+absolute terms -- trades against a large accuracy gap rather than a
+comparable one. We report LBGN's latency rank plainly rather than
+characterizing it as fastest, since it is not; the evidence instead supports
+a parameter- and FLOPs-efficiency claim specifically (best accuracy at the
+lowest parameter count and lowest FLOPs of any compared method), not a
+latency-efficiency claim.
+
+% =============================================================================
+% AUDIT NOTE (remove before submission; not part of the manuscript text)
+%
+% Directly measured (analysis/out/inference_time_per_model.csv, generated by
+% scripts/measure_inference_time_cmapss.py -- real forward-pass-only timing,
+% NOT the CSV's mislabeled 'inference_time' column, which is actually mean
+% training-epoch time):
+%   - params_mean and mean_ms for all 9 compared models
+%   - the 1st-9th latency ranking and the "LBGN ranks 4th" claim
+%   - LBGN's 10,812-13,716 parameter range (configs/hparams.py's per-source
+%     LCE_dim)
+%
+% Directly measured (analysis/out/flops_per_model.csv, generated by
+% scripts/measure_flops_cmapss.py + analysis/flop_utils.py -- thop for
+% standard layers, monkey-patched einsum/matmul/FFT for the custom ops thop
+% cannot see):
+%   - total_macs_incl_fft x2 for all 9 models
+%   - LBGN's two FLOPs variants (0.52M FD001 / 0.45M elsewhere), pair-weighted
+%     to 0.47M for consistency with the params_mean weighting above -- NOTE
+%     this replaces the simple 2-variant average (0.489M) given in an earlier
+%     turn of this session; the pair-weighted figure is the one now used
+%     throughout, both here and in the array-style data given previously
+%     should be corrected to match if reused elsewhere.
+%   - the parameters-vs-FLOPs rank divergence for DAGCN (1st on params,
+%     3rd-lowest on FLOPs) and DAST (7th on params, 1st on FLOPs) -- computed
+%     directly from the CSV, not estimated
+%
+% Directly measured (build_final_local_logs_table.py's verified
+% load_all()/collect(), same numbers already in the CMAPSS results tables):
+%   - all RMSE/Score means
+%
+% Interpretation (explicitly flagged as such above, not asserted as fact):
+%   - "the accuracy gain does not come from added model capacity" -- true for
+%     DAGCN specifically and consistent with the overall pattern, but not a
+%     controlled ablation isolating parameter count as a causal variable.
+%   - the mechanistic explanation for DAGCN-vs-DAST/TACDA's FLOPs/params
+%     divergence ("wide layers evaluated once" vs. "attention scaling with
+%     sequence length") is architecturally plausible given each model's
+%     known design (Chebyshev graph conv for DAGCN; self-attention for
+%     DAST/TACDA) but was not verified by a layer-by-layer FLOPs breakdown --
+%     flag as informed inference, not a measured decomposition, unless such
+%     a breakdown is added.
+%   - the "trades against a large accuracy gap" framing for OCS-DANN/CCDG is
+%     a reading of the same table, not a separate measurement.
+%
+% Open dependencies to resolve before this compiles:
+%   - \label{fig:complexity_rmse} / \label{fig:complexity_score} -- must be
+%     set on the \includegraphics figure environments wrapping
+%     figures/Inference_complexity_rmse.eps and
+%     figures/Inference_complexity_score.eps. NOTE: those two figures'
+%     x-axis is currently FLOPs (changed from inference time earlier this
+%     session), so their captions should describe FLOPs, not latency.
+%   - \label{subsec:results} -- points at wherever the CMAPSS RMSE/Score
+%     results subsection lives; update if its actual label differs.
+%   - \label{subsec:flops_method} -- points at wherever FLOPs/parameter
+%     counting methodology is (or should be) described; this section
+%     references it twice but does not itself define it. Add a methods
+%     paragraph or point this at the right existing subsection.
+% =============================================================================
